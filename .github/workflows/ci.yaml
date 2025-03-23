@@ -27,10 +27,12 @@ jobs:
       - name: Run `test.py`
         run: python3 test/test.py
 
-      - name: Install Docker Client
+      - name: Install Docker Properly (Fix for Ubuntu 24.04)
         run: |
           sudo apt update
-          sudo apt install -y docker.io
+          sudo apt remove -y containerd
+          curl -fsSL https://get.docker.com | sudo sh
+          sudo systemctl enable --now docker
           docker version
 
       - name: Pull Cached Image (from Private Registry)
