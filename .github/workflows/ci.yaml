@@ -27,12 +27,11 @@ jobs:
       - name: Run `test.py`
         run: python3 test/test.py
 
-      - name: Install Docker Properly (Fix for Ubuntu 24.04)
+      - name: Install Docker Properly (WSL2 Fix)
         run: |
-          sudo apt update
-          sudo apt remove -y containerd
           curl -fsSL https://get.docker.com | sudo sh
-          sudo systemctl enable --now docker
+          sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 &
+          sleep 5
           docker version
 
       - name: Pull Cached Image (from Private Registry)
