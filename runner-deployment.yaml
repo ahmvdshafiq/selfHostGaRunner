@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-runner
+  namespace: github-actions
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-runner
+  template:
+    metadata:
+      labels:
+        app: github-runner
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: runner
+        image: myoung34/github-runner:2.322.0-ubuntu-noble  # Verified working tag
+        env:
+        - name: REPO_URL
+          value: "https://github.com/ahmvdshafiq/selfHostGaRunner"
+        - name: RUNNER_NAME
+          value: "k3s-runner"
+        - name: ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-secret
+              key: token
+        volumeMounts:
+        - name: runner-workdir
+          mountPath: /tmp/runner
+      volumes:
+      - name: runner-workdir
+        emptyDir: {}
