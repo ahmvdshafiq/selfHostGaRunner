@@ -30,8 +30,9 @@ jobs:
       - name: Install Docker Properly (WSL2 Fix)
         run: |
           curl -fsSL https://get.docker.com | sudo sh
+          sudo sysctl net.ipv4.conf.all.forwarding=1
           sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 &
-          sleep 5
+          sleep 10
           docker version
 
       - name: Pull Cached Image (from Private Registry)
