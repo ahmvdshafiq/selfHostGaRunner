@@ -1,0 +1,39 @@
+name: Test Self-Hosted GitHub Runner with KEDA & Private Registry
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  build:
+    runs-on: self-hosted  # This runs on your K3s GitHub Runner
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Test Environment
+        run: |
+          echo "Runner Name: $RUNNER_NAME"
+          echo "Job running on $(uname -a)"
+
+      - name: Install Docker Client
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io
+          docker version
+
+      - name: Pull Cached Image (from Private Registry)
+        run: docker pull registry.registry.svc.cluster.local:5000/ubuntu || echo "Image not found, building it now..."
+
+      - name: Build Docker Image
+        run: |
+          docker build -t registry.registry.svc.cluster.local:5000/my-app:latest .
+          docker push registry.registry.svc.cluster.local:5000/my-app:latest
+
+      - name: Run Container
+        run: docker run --rm registry.registry.svc.cluster.local:5000/my-app:latest echo "Hello from Docker!"
+
+      - name: Cleanup
+        run: docker image prune -af
