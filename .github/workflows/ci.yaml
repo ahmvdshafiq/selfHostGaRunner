@@ -1,14 +1,13 @@
-name: Test Self-Hosted GitHub Runner with KEDA & Private Registry
+name: Test Self-Hosted GitHub Runner with Private Registry
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: self-hosted  # Runs on your K3s GitHub Runner
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,7 +15,7 @@ jobs:
       - name: Test Environment
         run: |
           echo "Runner Name: $RUNNER_NAME"
-          echo "Job running on $(uname -a)"
+          uname -a
 
       - name: Ensure Python is Installed
         run: |
@@ -27,24 +26,24 @@ jobs:
       - name: Run `test.py`
         run: python3 test/test.py
 
-      - name: Install Docker Properly (WSL2 Fix)
+      - name: Log in to Private Registry
         run: |
-          curl -fsSL https://get.docker.com | sudo sh
-          sudo sysctl net.ipv4.conf.all.forwarding=1
-          sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 &
-          sleep 10
-          docker version
+          docker login registry.registry.svc.cluster.local:5000 \
+            -u ${{ secrets.REGISTRY_USERNAME }} \
+            -p ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Pull Cached Image (from Private Registry)
-        run: docker pull registry.registry.svc.cluster.local:5000/ubuntu || echo "Image not found, building it now..."
+      - name: Build and Push with Kaniko
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: registry.registry.svc.cluster.local:5000/my-app:latest
+          builder: kaniko
+          cache: true
 
-      - name: Build Docker Image
+      - name: Run Tests in Kubernetes
         run: |
-          docker build -t registry.registry.svc.cluster.local:5000/my-app:latest .
-          docker push registry.registry.svc.cluster.local:5000/my-app:latest
-
-      - name: Run Container
-        run: docker run --rm registry.registry.svc.cluster.local:5000/my-app:latest echo "Hello from Docker!"
-
-      - name: Cleanup
-        run: docker image prune -af
+          kubectl run my-app-test \
+            --image=registry.registry.svc.cluster.local:5000/my-app:latest \
+            --restart=Never \
+            --command -- sh -c "echo 'Hello from Kubernetes!' && exit 0"
